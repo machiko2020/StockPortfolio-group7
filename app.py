@@ -27,11 +27,12 @@ def plot_efficient_frontier_and_max_sharpe(mu, S):
 	ef_max_sharpe = copy.deepcopy(ef)
 	plotting.plot_efficient_frontier(ef, ax=ax, show_assets=False)
 	# Find the max sharpe portfolio
-	ef_max_sharpe.max_sharpe(risk_free_rate=0.02)
+	ef_max_sharpe.max_sharpe(risk_free_rate=0.05) 
+	# https://ycharts.com/indicators/1_year_treasury_rate#:~:text=Basic%20Info,long%20term%20average%20of%202.88%25.
 	ret_tangent, std_tangent, _ = ef_max_sharpe.portfolio_performance()
 	ax.scatter(std_tangent, ret_tangent, marker="*", s=100, c="r", label="Max Sharpe")
 	# Generate random portfolios
-	n_samples = 1000
+	n_samples = 10000
 	w = np.random.dirichlet(np.ones(ef.n_assets), n_samples)
 	rets = w.dot(ef.expected_returns)
 	stds = np.sqrt(np.diag(w @ ef.cov_matrix @ w.T))
@@ -44,13 +45,16 @@ def plot_efficient_frontier_and_max_sharpe(mu, S):
 st.set_page_config(page_title = "Gorilla Group's Stock Portfolio Optimizer", layout = "wide")
 st.header("Gorilla Group's Stock Portfolio Optimizer")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
 	start_date = st.date_input("Start Date",datetime(2013, 1, 1))
 	
 with col2:
 	end_date = st.date_input("End Date") # it defaults to current date
+with col3:
+	investment_amount=st.int_input('Enter your investment amount')
+	
 
 tickers_string = st.text_input('Enter all stock tickers to be included in portfolio separated by commas \
 								WITHOUT spaces, e.g. "MA,META,V,AMZN,JPM,BA"', '').upper()
@@ -83,7 +87,9 @@ try:
 	expected_annual_return, annual_volatility, sharpe_ratio = ef.portfolio_performance()
 	weights_df = pd.DataFrame.from_dict(weights, orient = 'index')
 	weights_df.columns = ['weights']
-	
+	# Get the number of stock 
+	da = DiscreteAllocation(weights_df, latest_prices = get_latest_prices(inp), total_portfolio_value=investment_amount)
+	allocation, leftover = da.lp_portfolio()
 	# Calculate returns of portfolio with optimized weights
 	stocks_df['Optimized Portfolio'] = 0
 	for ticker, weight in weights.items():
@@ -98,7 +104,10 @@ try:
 	
 	st.subheader("Optimized Max Sharpe Portfolio Weights")
 	st.dataframe(weights_df)
-	
+	st.subheader("The number of stock you should buy")
+	st.dataframe(allocation)
+	st.subheader("The remaining amount")
+	st.dataframe(leftover)
 	st.subheader("Optimized Max Sharpe Portfolio Performance")
 	st.image(fig_efficient_frontier)
 	
